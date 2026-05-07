@@ -1,0 +1,14 @@
+{
+  "name": "weektasks",
+  "version": "1.0.0",
+  "description": "Weekly task list",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "cross-env DATA_DIR=./data PORT=3000 nodemon server.js"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.14"
+  }
+}
