@@ -1,11 +1,11 @@
 const DAYS = [
-  { key: 'monday',    short: 'Mon', full: 'Monday' },
-  { key: 'tuesday',   short: 'Tue', full: 'Tuesday' },
+  { key: 'monday', short: 'Mon', full: 'Monday' },
+  { key: 'tuesday', short: 'Tue', full: 'Tuesday' },
   { key: 'wednesday', short: 'Wed', full: 'Wednesday' },
-  { key: 'thursday',  short: 'Thu', full: 'Thursday' },
-  { key: 'friday',    short: 'Fri', full: 'Friday' },
-  { key: 'saturday',  short: 'Sat', full: 'Saturday' },
-  { key: 'sunday',    short: 'Sun', full: 'Sunday' },
+  { key: 'thursday', short: 'Thu', full: 'Thursday' },
+  { key: 'friday', short: 'Fri', full: 'Friday' },
+  { key: 'saturday', short: 'Sat', full: 'Saturday' },
+  { key: 'sunday', short: 'Sun', full: 'Sunday' },
 ];
 
 let allTasks = [];
@@ -20,8 +20,9 @@ const emptyEl = $('#emptyState');
 const clearBtn = $('#clearDoneBtn');
 const todayPill = $('#todayPill');
 const fab = $('#fab');
+const brandBtn = $('#brandBtn');
+const ptrIndicator = $('#ptrIndicator');
 
-// Sheet elements
 const sheet = $('#sheet');
 const sheetBackdrop = $('#sheetBackdrop');
 const sheetTitle = $('#sheetTitle');
@@ -31,35 +32,33 @@ const repeatToggle = $('#repeatToggle');
 const cancelBtn = $('#cancelBtn');
 const saveBtn = $('#saveBtn');
 const deleteBtn = $('#deleteBtn');
+const subtasksField = $('#subtasksField');
+const subtaskEditList = $('#subtaskEditList');
+const subtaskInput = $('#subtaskInput');
+const subtaskAddBtn = $('#subtaskAddBtn');
 
-let editingTaskId = null;       // null when creating new
+let editingTaskId = null;
 let pickedDays = new Set();
 
 // ----- Date helpers -----
 function todayKey() {
   const d = new Date().getDay();
-  return ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d];
+  return ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][d];
 }
+function todayDate() { return new Date(); }
 
-function todayDate() {
-  return new Date();
-}
-
-// ISO 8601 week number — week starts Monday
 function isoWeekKey(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = (d.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  const dayNum = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - dayNum + 3);
   const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
   const week = 1 + Math.round(((d - firstThu) / 86400000 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-// completionKey = "YYYY-Www-day", uniquely identifies one day in one week
 function completionKeyFor(dayKey, refDate = todayDate()) {
-  // Find the date of this dayKey in the week containing refDate
-  const refDayIdx = (refDate.getDay() + 6) % 7; // Mon=0
-  const targetIdx = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].indexOf(dayKey);
+  const refDayIdx = (refDate.getDay() + 6) % 7;
+  const targetIdx = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].indexOf(dayKey);
   const diff = targetIdx - refDayIdx;
   const target = new Date(refDate);
   target.setDate(refDate.getDate() + diff);
@@ -67,8 +66,8 @@ function completionKeyFor(dayKey, refDate = todayDate()) {
 }
 
 function isPastDay(dayKey, refDate = todayDate()) {
-  const refDayIdx = (refDate.getDay() + 6) % 7; // Mon=0
-  const targetIdx = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].indexOf(dayKey);
+  const refDayIdx = (refDate.getDay() + 6) % 7;
+  const targetIdx = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].indexOf(dayKey);
   return targetIdx < refDayIdx;
 }
 
@@ -88,41 +87,30 @@ async function loadAll() {
   render();
 }
 
-// ----- Selection / display logic -----
-
-// All tasks scheduled for a given day in the current week
+// ----- Helpers -----
 function tasksForDay(dayKey) {
   return allTasks.filter(t => t.days.includes(dayKey));
 }
-
-// Is a given task done for a given day in the current week?
 function isDoneOn(task, dayKey) {
   return !!task.completions[completionKeyFor(dayKey)];
 }
-
-// Overdue tasks to bubble up to today: tasks scheduled for a *past* day
-// of the current week, that aren't done for that day.
-// Only relevant when viewing today.
+function isSubDoneOn(sub, dayKey) {
+  return !!(sub.completions && sub.completions[completionKeyFor(dayKey)]);
+}
 function overdueForToday() {
-  const today = todayKey();
   const result = [];
-  for (const dayKey of ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']) {
+  for (const dayKey of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']) {
     if (!isPastDay(dayKey)) continue;
     for (const t of tasksForDay(dayKey)) {
-      if (!isDoneOn(t, dayKey)) {
-        result.push({ task: t, fromDay: dayKey });
-      }
+      if (!isDoneOn(t, dayKey)) result.push({ task: t, fromDay: dayKey });
     }
   }
   return result;
 }
-
 function dayHasOverdue(dayKey) {
-  // Used for the today tab only — no point marking past tabs
   if (dayKey !== todayKey()) return false;
   return overdueForToday().length > 0;
 }
-
 function dayHasPendingTasks(dayKey) {
   return tasksForDay(dayKey).some(t => !isDoneOn(t, dayKey));
 }
@@ -162,14 +150,12 @@ function render() {
   const overdue = activeDay === todayKey() ? overdueForToday() : [];
 
   const remaining = dayTasks.filter(t => !isDoneOn(t, activeDay)).length;
-  const totalNote = dayTasks.length === 0
+  counterEl.textContent = dayTasks.length === 0
     ? (overdue.length > 0 ? `${overdue.length} overdue` : '0 tasks')
     : `${remaining} of ${dayTasks.length} left${overdue.length ? ` · ${overdue.length} overdue` : ''}`;
-  counterEl.textContent = totalNote;
 
   listEl.innerHTML = '';
 
-  // Overdue first
   if (overdue.length > 0) {
     const label = document.createElement('div');
     label.className = 'section-label';
@@ -180,12 +166,9 @@ function render() {
     });
   }
 
-  // Today's (or selected day's) tasks
   dayTasks.forEach(t => listEl.appendChild(taskNode(t, activeDay, false)));
 
   emptyEl.hidden = !(dayTasks.length === 0 && overdue.length === 0);
-
-  // Show "clear completed" only if there are completed non-recurring tasks for this day
   const hasCompletedNonRecurring = dayTasks.some(t => !t.repeat && isDoneOn(t, activeDay));
   clearBtn.hidden = !hasCompletedNonRecurring;
 }
@@ -198,14 +181,12 @@ function taskNode(task, dayKey, isOverdue) {
   li.dataset.id = task.id;
   li.dataset.dayKey = dayKey;
 
-  // Checkbox
   const cb = document.createElement('button');
   cb.className = 'checkbox';
   cb.setAttribute('aria-label', 'Toggle done');
   cb.innerHTML = `<svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4L19 7" stroke="#0e1016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   cb.addEventListener('click', () => toggleDone(task, dayKey));
 
-  // Body
   const body = document.createElement('div');
   body.className = 'task-body';
 
@@ -223,14 +204,12 @@ function taskNode(task, dayKey, isOverdue) {
     rep.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>weekly`;
     meta.appendChild(rep);
   }
-
   if (task.days.length > 1 && !isOverdue) {
     const ds = document.createElement('span');
     ds.className = 'task-badge';
     ds.textContent = task.days.map(d => d.slice(0, 3)).join(' · ');
     meta.appendChild(ds);
   }
-
   if (isOverdue) {
     const ot = document.createElement('span');
     ot.className = 'task-badge';
@@ -238,10 +217,25 @@ function taskNode(task, dayKey, isOverdue) {
     ot.textContent = `from ${dayKey}`;
     meta.appendChild(ot);
   }
-
+  if (task.subtasks && task.subtasks.length > 0) {
+    const subDone = task.subtasks.filter(s => isSubDoneOn(s, dayKey)).length;
+    const sb = document.createElement('span');
+    sb.className = 'task-badge';
+    sb.textContent = `${subDone}/${task.subtasks.length} subtasks`;
+    meta.appendChild(sb);
+  }
   if (meta.children.length > 0) body.appendChild(meta);
 
-  // Actions
+  // Render subtasks inline (when not done at top level)
+  if (task.subtasks && task.subtasks.length > 0) {
+    const subUl = document.createElement('ul');
+    subUl.className = 'subtasks';
+    task.subtasks.forEach(sub => {
+      subUl.appendChild(subtaskNode(task, sub, dayKey));
+    });
+    body.appendChild(subUl);
+  }
+
   const actions = document.createElement('div');
   actions.className = 'task-actions';
   const edit = document.createElement('button');
@@ -252,6 +246,26 @@ function taskNode(task, dayKey, isOverdue) {
   actions.appendChild(edit);
 
   li.append(cb, body, actions);
+  return li;
+}
+
+function subtaskNode(task, sub, dayKey) {
+  const li = document.createElement('li');
+  li.className = 'subtask';
+  if (isSubDoneOn(sub, dayKey)) li.classList.add('is-done');
+  li.dataset.subId = sub.id;
+
+  const cb = document.createElement('button');
+  cb.className = 'subtask-checkbox';
+  cb.setAttribute('aria-label', 'Toggle subtask');
+  cb.innerHTML = `<svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4L19 7" stroke="#0e1016" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  cb.addEventListener('click', (e) => { e.stopPropagation(); toggleSubtaskDone(task, sub, dayKey); });
+
+  const text = document.createElement('span');
+  text.className = 'subtask-text';
+  text.textContent = sub.text;
+
+  li.append(cb, text);
   return li;
 }
 
@@ -276,14 +290,22 @@ async function toggleDone(task, dayKey) {
   render();
 }
 
+async function toggleSubtaskDone(task, sub, dayKey) {
+  const key = completionKeyFor(dayKey);
+  const newDone = !sub.completions[key];
+  await api('PATCH', '/api/subtasks', { taskId: task.id, subtaskId: sub.id, completionKey: key, done: newDone });
+  if (newDone) sub.completions[key] = true;
+  else delete sub.completions[key];
+  render();
+}
+
 clearBtn.addEventListener('click', async () => {
   const key = completionKeyFor(activeDay);
   await api('POST', '/api/clear-done', { completionKey: key });
-  // Reload — clear-done deletes one-shot tasks
   await loadAll();
 });
 
-// ----- Sheet (add / edit) -----
+// ----- Sheet (add/edit) -----
 function openAddSheet() {
   editingTaskId = null;
   sheetTitle.textContent = 'New task';
@@ -291,6 +313,7 @@ function openAddSheet() {
   pickedDays = new Set([activeDay]);
   repeatToggle.checked = false;
   deleteBtn.hidden = true;
+  subtasksField.hidden = true; // subtasks editor only when editing
   renderDayPicker();
   showSheet();
   setTimeout(() => sheetInput.focus(), 250);
@@ -303,7 +326,9 @@ function openEditSheet(task) {
   pickedDays = new Set(task.days);
   repeatToggle.checked = !!task.repeat;
   deleteBtn.hidden = false;
+  subtasksField.hidden = false;
   renderDayPicker();
+  renderSubtaskEditor(task);
   showSheet();
 }
 
@@ -324,6 +349,61 @@ function renderDayPicker() {
   });
 }
 
+function renderSubtaskEditor(task) {
+  subtaskEditList.innerHTML = '';
+  (task.subtasks || []).forEach(sub => {
+    const li = document.createElement('li');
+    li.className = 'subtask-edit-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = sub.text;
+    input.addEventListener('blur', async () => {
+      const newText = input.value.trim();
+      if (!newText) return;
+      if (newText === sub.text) return;
+      await api('PATCH', '/api/subtasks', { taskId: task.id, subtaskId: sub.id, text: newText });
+      sub.text = newText;
+    });
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'icon-btn';
+    del.setAttribute('aria-label', 'Delete subtask');
+    del.innerHTML = '✕';
+    del.addEventListener('click', async () => {
+      await api('DELETE', '/api/subtasks', { taskId: task.id, subtaskId: sub.id });
+      task.subtasks = task.subtasks.filter(s => s.id !== sub.id);
+      renderSubtaskEditor(task);
+      render();
+    });
+
+    li.append(input, del);
+    subtaskEditList.appendChild(li);
+  });
+}
+
+subtaskAddBtn.addEventListener('click', addSubtaskFromInput);
+subtaskInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addSubtaskFromInput(); }
+});
+
+async function addSubtaskFromInput() {
+  if (!editingTaskId) return;
+  const text = subtaskInput.value.trim();
+  if (!text) return;
+  const sub = await api('POST', '/api/subtasks', { taskId: editingTaskId, text });
+  const task = allTasks.find(t => t.id === editingTaskId);
+  if (task) {
+    if (!task.subtasks) task.subtasks = [];
+    task.subtasks.push(sub);
+    renderSubtaskEditor(task);
+    render();
+  }
+  subtaskInput.value = '';
+  subtaskInput.focus();
+}
+
 function showSheet() {
   sheet.hidden = false;
   sheetBackdrop.hidden = false;
@@ -342,17 +422,18 @@ sheetBackdrop.addEventListener('click', hideSheet);
 saveBtn.addEventListener('click', async () => {
   const text = sheetInput.value.trim();
   if (!text) { sheetInput.focus(); return; }
-  if (pickedDays.size === 0) {
-    alert('Pick at least one day.');
-    return;
-  }
+  if (pickedDays.size === 0) { alert('Pick at least one day.'); return; }
   const days = DAYS.map(d => d.key).filter(k => pickedDays.has(k));
   const repeat = repeatToggle.checked;
 
   if (editingTaskId) {
     const updated = await api('PATCH', '/api/tasks', { id: editingTaskId, text, days, repeat });
     const idx = allTasks.findIndex(t => t.id === editingTaskId);
-    if (idx >= 0) allTasks[idx] = updated;
+    if (idx >= 0) {
+      // Preserve subtasks (PATCH doesn't return them in the new model unchanged, so refetch from local)
+      updated.subtasks = allTasks[idx].subtasks || [];
+      allTasks[idx] = updated;
+    }
   } else {
     const newTask = await api('POST', '/api/tasks', { text, days, repeat });
     allTasks.push(newTask);
@@ -364,7 +445,7 @@ saveBtn.addEventListener('click', async () => {
 
 deleteBtn.addEventListener('click', async () => {
   if (!editingTaskId) return;
-  if (!confirm('Delete this task?')) return;
+  if (!confirm('Delete this task and all its subtasks?')) return;
   await api('DELETE', '/api/tasks', { id: editingTaskId });
   allTasks = allTasks.filter(t => t.id !== editingTaskId);
   hideSheet();
@@ -374,6 +455,80 @@ deleteBtn.addEventListener('click', async () => {
 
 sheetInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+});
+
+// ----- Brand tap = refresh -----
+brandBtn.addEventListener('click', async () => {
+  await refresh();
+});
+
+async function refresh() {
+  ptrIndicator.classList.add('visible', 'refreshing');
+  try {
+    await loadAll();
+  } catch (err) {
+    console.error('Refresh failed:', err);
+  } finally {
+    setTimeout(() => {
+      ptrIndicator.classList.remove('visible', 'refreshing');
+      ptrIndicator.style.transform = '';
+      ptrIndicator.style.opacity = '';
+      ptrIndicator.style.visibility = '';
+    }, 400);
+  }
+}
+
+// ----- Pull to refresh -----
+let ptrStartY = null;
+let ptrPulling = false;
+let ptrTriggered = false;
+const PTR_THRESHOLD = 70;
+
+window.addEventListener('touchstart', (e) => {
+  if (window.scrollY > 0 || document.body.classList.contains('sheet-open')) {
+    ptrStartY = null;
+    return;
+  }
+  ptrStartY = e.touches[0].clientY;
+  ptrPulling = false;
+  ptrTriggered = false;
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+  if (ptrStartY === null) return;
+  if (window.scrollY > 0) { ptrStartY = null; return; }
+  const dy = e.touches[0].clientY - ptrStartY;
+  if (dy <= 0) return;
+  ptrPulling = true;
+  const pulled = Math.min(dy * 0.5, 90);
+  ptrIndicator.style.visibility = 'visible';
+  ptrIndicator.style.opacity = '1';
+  ptrIndicator.style.transform = `translateY(${pulled - 40}px)`;
+  ptrTriggered = dy > PTR_THRESHOLD;
+}, { passive: true });
+
+window.addEventListener('touchend', async () => {
+  if (!ptrPulling) { ptrStartY = null; return; }
+  ptrPulling = false;
+  // Clear inline styles so the class-based transitions take over
+  ptrIndicator.style.transform = '';
+  ptrIndicator.style.opacity = '';
+  ptrIndicator.style.visibility = '';
+  if (ptrTriggered) {
+    await refresh();
+  }
+  ptrStartY = null;
+  ptrTriggered = false;
+});
+
+window.addEventListener('touchcancel', () => {
+  if (!ptrPulling) return;
+  ptrIndicator.style.transform = '';
+  ptrIndicator.style.opacity = '';
+  ptrIndicator.style.visibility = '';
+  ptrStartY = null;
+  ptrPulling = false;
+  ptrTriggered = false;
 });
 
 // ----- Swipe between days -----
@@ -399,7 +554,6 @@ dayView.addEventListener('touchend', (e) => {
 });
 
 // ----- Init -----
-// Always start on today
 activeDay = todayKey();
 loadAll().catch(err => {
   console.error(err);
