@@ -1,0 +1,16 @@
+# Local data and build artifacts
+data/
+*.tar.gz
+*.tar
+node_modules/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#11131a">
+<title>Weekly Tasks</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <h1>Week<span>Tasks</span></h1>
+    </div>
+    <div class="today-pill" id="todayPill">—</div>
+  </header>
+
+  <nav class="day-tabs" id="dayTabs"></nav>
+
+  <main class="day-view">
+    <div class="day-header">
+      <h2 id="dayTitle">Monday</h2>
+      <span class="counter" id="dayCounter">0 tasks</span>
+    </div>
+
+    <ul class="task-list" id="taskList"></ul>
+
+    <div class="empty-state" id="emptyState" hidden>
+      <div class="empty-icon">✺</div>
+      <p>Nothing planned.<br><span>Tap + to add a task.</span></p>
+    </div>
+
+    <button class="clear-done" id="clearDoneBtn" hidden>Clear completed</button>
+  </main>
+
+  <!-- Floating add button -->
+  <button class="fab" id="fab" aria-label="Add task">
+    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </button>
+
+  <!-- Add / Edit panel (slides up) -->
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-handle"></div>
+    <h3 id="sheetTitle">New task</h3>
+
+    <label class="field">
+      <span class="field-label">Task</span>
+      <input type="text" id="sheetInput" placeholder="What needs doing?" maxlength="200" autocomplete="off">
+    </label>
+
+    <div class="field">
+      <span class="field-label">Days</span>
+      <div class="day-picker" id="dayPicker">
+        <!-- 7 day chips injected by JS -->
+      </div>
+    </div>
+
+    <label class="field-row">
+      <input type="checkbox" id="repeatToggle">
+      <span>Repeat every week</span>
+    </label>
+
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Save</button>
+    </div>
+
+    <button class="btn btn-danger" id="deleteBtn" hidden>Delete task</button>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
